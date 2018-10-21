@@ -1,0 +1,66 @@
+#!/bin/bash
+
+# Check input for pageId
+if [ -z "$1" ]
+then
+      echo "Please enter imdb pageId"
+      exit
+fi
+
+# Download only html in tmp file
+echo "Please wait..."
+TIME=$(date +%s)
+wget -O ./.test_$TIME .test https://www.imdb.com/title/$1/ >/dev/null 2>&1
+
+# Chack Download is OK and tmp file exists and is not empty
+if [ -s "./.test_$TIME" ] 
+then
+
+    # Get the JSON from json part in the inside of page source.
+    FIRSTLINE=$(cat ./.test_$TIME  | grep -n 'application/ld+json' | cut -f1 -d:)
+    tail -n+$FIRSTLINE ./.test_$TIME > ./.test_$TIME_xson
+    LASTLINE=$(cat ./.test_$TIME_xson | grep -n '}</script>' | head -1 | cut -f1 -d:)
+    JSON=$(tail -n+$FIRSTLINE ./.test_$TIME | head -$LASTLINE)
+    JSON=${JSON:35 }
+    JSON=${JSON::-9}
+
+    # Calculate movie runtime from JSON data
+    RUNTIME=$((  $(echo $(cut -f1 -dH <<< $(echo $JSON | jq '.duration') | sed 's/[^0-9]*//g')) * 60 + $(echo $(cut -f2 -dH <<< $(echo $JSON | jq '.duration') | sed 's/[^0-9]*//g'))))
+
+    # Create movie json file name
+    FILENAME=$(echo $(echo $JSON | jq '.name') | tr '[:upper:]' '[:lower:]' | sed -e 's/^"//' -e 's/"$//' | sed 's/ /-/g')
+
+    # Create JSON
+    echo '{' > ./$FILENAME.json
+    echo '  "name":' $(echo $JSON | jq '.name')',' >> ./$FILENAME.json
+    echo '  "year":' $(echo $JSON | jq '.datePublished' | cut -c1-5)'",' >> ./$FILENAME.json
+    echo '  "runtime": "'$RUNTIME'",' >> ./$FILENAME.json
+    echo '  "categories":' $(echo $JSON | jq '.genre') >> ./$FILENAME.json
+    echo '  "release-date":' $(echo $JSON | jq '.datePublished')',' >> ./$FILENAME.json
+
+    echo $JSON | jq '.director | .name' >/dev/null 2>&1
+    if [ $? -eq 0 ]; then
+        echo '  "director":' $(echo $JSON | jq '.director | .name')',' >> ./$FILENAME.json
+    else
+        echo '  "director":' $(echo $JSON | jq '[.director[] | select(.name != null) | .name]')',' >> ./$FILENAME.json
+    fi
+
+    echo $JSON | jq '.creator | .name' >/dev/null 2>&1
+    if [ $? -eq 0 ]; then
+        echo '  "writer":' $(echo $JSON | jq '.creator | .name')',' >> ./$FILENAME.json
+    else
+        echo '  "writer":' $(echo $JSON | jq '[.creator[] | select(.name != null) | .name]')',' >> ./$FILENAME.json
+    fi
+
+    echo '  "actors": '$(echo $JSON | jq '[.actor[] | select(.name != null) | .name]' )',' >> ./$FILENAME.json
+    echo '  "storyline":' $(echo $JSON | jq '.description') >> ./$FILENAME.json
+    echo '}' >> ./$FILENAME.json
+
+    echo 'File Ready:' $FILENAME.json
+
+else
+   echo "invalid pageId"
+fi
+
+# Remove tmp files
+rm -rf ./.test_$TIME ./.test_$TIME_xson
