@@ -33,9 +33,9 @@ then
     # Create JSON
     echo '{' > ./$FILENAME.json
     echo '  "name":' $(echo $JSON | jq '.name')',' >> ./$FILENAME.json
-    echo '  "year":' $(echo $JSON | jq '.datePublished' | cut -c1-5)'",' >> ./$FILENAME.json
-    echo '  "runtime": "'$RUNTIME'",' >> ./$FILENAME.json
-    echo '  "categories":' $(echo $JSON | jq '.genre') >> ./$FILENAME.json
+    echo '  "year":' $(echo $JSON | jq '.datePublished' | sed -e 's/^"//' -e 's/"$//' | cut -c1-4)',' >> ./$FILENAME.json
+    echo '  "runtime": '$RUNTIME',' >> ./$FILENAME.json
+    echo '  "categories":' $(echo $JSON | jq '.genre')',' >> ./$FILENAME.json
     echo '  "release-date":' $(echo $JSON | jq '.datePublished')',' >> ./$FILENAME.json
 
     echo $JSON | jq '.director | .name' >/dev/null 2>&1
