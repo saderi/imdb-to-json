@@ -4,6 +4,9 @@
 
 Your can use this bash script to convert a IMDB movie info to JSON for [this](https://github.com/jsonmc/jsonmc) repository
 
+## Requirement
+
+This script uses [jq](https://stedolan.github.io/jq/). you must install jq on you system.
 
 
 ## How to use
